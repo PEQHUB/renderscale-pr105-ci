@@ -22,7 +22,7 @@ public abstract class MixinPostChain {
 
     @Unique
     private double renderScale$inverseScale() {
-        return name.equals("minecraft:shaders/post/entity_outline.json") ? 1 / RenderScale.getConfig().getScale() : 1;
+        return name.equals("minecraft:shaders/post/entity_outline.json") ? 1 / RenderScale.getInstance().getRenderScaleFactor() : 1;
 //        return 1 / RenderScale.getConfig().getScale();
     }
 

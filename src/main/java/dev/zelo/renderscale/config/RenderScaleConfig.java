@@ -2,7 +2,6 @@ package dev.zelo.renderscale.config;
 
 import dev.zelo.renderscale.RenderScale;
 import dev.zelo.renderscale.compat.iris.IrisCompatibility;
-import dev.zelo.renderscale.platform.Platform;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -17,6 +16,41 @@ import net.irisshaders.iris.api.v0.IrisApi;
 public class RenderScaleConfig implements ConfigData {
     public float scale = 1.0f;
     public boolean forceLinear = false;
+
+    @ConfigEntry.Category("dynamic")
+    @ConfigEntry.Gui.Tooltip()
+//    @ConfigEntry.BoundedDiscrete(min = 0, max = 1000)
+    public int targetFrameRate = 0;
+
+    @ConfigEntry.Category("dynamic")
+    @ConfigEntry.Gui.Tooltip()
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public Aggression aggressionLevel = Aggression.NORMAL;
+
+    public enum Aggression implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+        CALM(25), NORMAL(50), AGGRESSIVE(80), EXTREME(100);
+
+        public final int strength;
+
+        Aggression(int strength) {
+            this.strength = strength;
+        }
+
+        @Override
+        public String getKey() {
+            return "text.autoconfig.renderscale.option.aggressionLevel." + name();
+        }
+    }
+
+    @Override
+    public void validatePostLoad() {
+        if (aggressionLevel == null) aggressionLevel = Aggression.NORMAL;
+    }
+
+    @ConfigEntry.Category("dynamic")
+    @ConfigEntry.Gui.Tooltip()
+//    @ConfigEntry.BoundedDiscrete(min = 10, max = 100)
+    public float minimumScale = 0.1f;
 
     //? >= 1.21.11 {
     @ConfigEntry.Gui.Tooltip()
@@ -51,11 +85,11 @@ public class RenderScaleConfig implements ConfigData {
 
     public float getScale() {
         // To avoid 0x0 crashes if the user FOR SOME REASON puts 0 as the scale
-        float safeScale = Math.max(0.01f, scale);
+        float safeScale = Float.isFinite(scale) ? Math.max(0.01f, scale) : 1.0f;
 
         //? iris {
         if (RenderScale.PLATFORM.isModLoaded("iris")) {
-            if (IrisApi.getInstance().isShaderPackInUse() && irisScale > 0.0f) {
+            if (IrisApi.getInstance().isShaderPackInUse() && Float.isFinite(irisScale) && irisScale > 0.0f) {
                 return irisScale;
             } else {
                 return safeScale;
@@ -68,11 +102,26 @@ public class RenderScaleConfig implements ConfigData {
         *///?}
     }
 
+    public boolean isDynamicScaleEnabled() {
+        if (targetFrameRate <= 0) return false;
+        return true;
+    }
+
+    public int getTargetFrameRate() {
+        return targetFrameRate;
+    }
+
+    public double getMinimumScale() {
+        return Math.min(getScale(), Math.max(0.0, minimumScale));
+    }
+
     // true -> linear, false -> nearest
     public boolean getFilter() {
+        double effectiveScale = RenderScale.getInstance() == null ? getScale()
+                : RenderScale.getInstance().getRenderScaleFactor();
         //? >= 1.21.11 {
-        return fsr || forceLinear || getScale() > 1.0;
+        return fsr || forceLinear || effectiveScale > 1.0;
         //?} else
-        //return forceLinear || getScale() > 1.0;
+        //return forceLinear || effectiveScale > 1.0;
     }
 }

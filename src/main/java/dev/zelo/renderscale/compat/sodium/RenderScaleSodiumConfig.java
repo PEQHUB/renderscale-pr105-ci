@@ -13,6 +13,9 @@ import net.minecraft.resources.Identifier;
 public class RenderScaleSodiumConfig implements ConfigEntryPoint {
     private static final Identifier SCALE = id("scale");
     private static final Identifier FORCE_LINEAR = id("force_linear");
+    private static final Identifier TARGET_FRAME_RATE = id("target_frame_rate");
+    private static final Identifier AGGRESSION = id("aggression");
+    private static final Identifier MINIMUM_SCALE = id("minimum_scale");
     //? >= 1.21.11
     private static final Identifier FSR = id("fsr");
     //? iris
@@ -63,6 +66,43 @@ public class RenderScaleSodiumConfig implements ConfigEntryPoint {
                                 //?}
                         )
                 )
+                .addPage(builder.createOptionPage()
+                        .setName(Component.translatable("text.autoconfig.renderscale.category.dynamic"))
+                        .addOptionGroup(builder.createOptionGroup()
+                                .addOption(builder.createIntegerOption(TARGET_FRAME_RATE)
+                                        .setName(Component.translatable("text.autoconfig.renderscale.option.targetFrameRate"))
+                                        .setTooltip(Component.translatable("text.autoconfig.renderscale.option.targetFrameRate.@Tooltip"))
+                                        .setStorageHandler(this.storageHandler)
+                                        .setBinding(v -> config().targetFrameRate = v, () -> config().getTargetFrameRate())
+                                        .setDefaultValue(0)
+                                        .setRange(0, 1000, 10)
+                                        .setValueFormatter(value -> value == 0
+                                                ? Component.translatable("text.autoconfig.renderscale.option.targetFrameRate.off")
+                                                : Component.literal(value + " FPS"))
+                                )
+                                .addOption(builder.createIntegerOption(AGGRESSION)
+                                        .setName(Component.translatable("text.autoconfig.renderscale.option.aggression"))
+                                        .setTooltip(Component.translatable("text.autoconfig.renderscale.option.aggression.@Tooltip"))
+                                        .setStorageHandler(this.storageHandler)
+                                        .setBinding(v -> config().aggressionLevel = RenderScaleConfig.Aggression.values()[v],
+                                                () -> config().aggressionLevel.ordinal())
+                                        .setDefaultValue(1)
+                                        .setRange(0, 3, 1)
+                                        .setValueFormatter(value -> Component.translatable(
+                                                "text.autoconfig.renderscale.option.aggressionLevel."
+                                                        + RenderScaleConfig.Aggression.values()[value].name()))
+                                )
+                                .addOption(builder.createIntegerOption(MINIMUM_SCALE)
+                                        .setName(Component.translatable("text.autoconfig.renderscale.option.minimumScale"))
+                                        .setTooltip(Component.translatable("text.autoconfig.renderscale.option.minimumScale.@Tooltip"))
+                                        .setStorageHandler(this.storageHandler)
+                                        .setBinding(this::setMinimumScalePercent, this::getMinimumScalePercent)
+                                        .setDefaultValue(10)
+                                        .setRange(10, 100, 1)
+                                        .setValueFormatter(RenderScaleSodiumConfig::formatPercent)
+                                )
+                        )
+                )
                         //? iris {
                 .addPage(builder.createOptionPage()
                         .setName(Component.translatable("text.autoconfig.renderscale.category.iris"))
@@ -98,6 +138,15 @@ public class RenderScaleSodiumConfig implements ConfigEntryPoint {
     private void setScalePercent(int value) {
         config().scale = value / 100.0f;
     }
+
+    private int getMinimumScalePercent() {
+        return Math.round(config().minimumScale * 100.0f);
+    }
+
+    private void setMinimumScalePercent(int value) {
+        config().minimumScale = value / 100.0f;
+    }
+
 
     private int getIrisScalePercent() {
         if (config().irisScale <= 0.0f) {

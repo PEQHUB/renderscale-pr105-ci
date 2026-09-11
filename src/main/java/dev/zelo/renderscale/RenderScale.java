@@ -125,6 +125,11 @@ public class RenderScale {
 
     private static RenderScale instance;
     private boolean shouldScale = false;
+    private final DynamicScaleController dynamicScale = new DynamicScaleController();
+    private Object dynamicScaleLevel;
+    private Object dynamicScaleCamera;
+    private float previousCameraYaw;
+    private float previousCameraPitch;
     public boolean hasRun = false;
 
     public static final ConfigHolder<RenderScaleConfig> CONFIG = RenderScaleConfig.init();
@@ -152,8 +157,10 @@ public class RenderScale {
 
     // NeoForge made it so that the mod loads before Minecraft (but not fabric...), so this is needed to get the "actual" Minecraft instance
     public static void init(Minecraft client) {
-        instance = new RenderScale();
         RenderScale.client = client;
+        if (instance == null) {
+            instance = new RenderScale();
+        }
     }
 
     public static RenderScale getInstance() {
@@ -166,6 +173,8 @@ public class RenderScale {
 
     public void onResolutionChanged() {
         if (getWindow() == null) return;
+
+        dynamicScale.reset(getConfig().getScale());
 
         ProfilerFiller profiler = getProfile();
         profiler.push("renderscale_resize_targets");
@@ -294,7 +303,58 @@ public class RenderScale {
 
     // Takes into account shouldScale
     public double getCurrentScaleFactor() {
-        return shouldScale ? getConfig().getScale() : 1;
+        return shouldScale ? getRenderScaleFactor() : 1;
+    }
+
+    public double getRenderScaleFactor() {
+        return getConfig().isDynamicScaleEnabled()
+                ? Math.max(getConfig().getMinimumScale(), Math.min(getConfig().getScale(), dynamicScale.getScale()))
+                : getConfig().getScale();
+    }
+
+    public void updateDynamicScale() {
+        RenderScaleConfig config = getConfig();
+        if (dynamicScaleLevel != client.level) {
+            dynamicScaleLevel = client.level;
+            dynamicScale.reset(config.getScale());
+            dynamicScaleCamera = null;
+        }
+        if (!config.isDynamicScaleEnabled()) {
+            dynamicScale.reset(config.getScale());
+            return;
+        }
+        //? >= 26.2 {
+        boolean hasScreen = client.gui.screen() != null || client.gui.overlay() != null;
+        //?} else
+        //boolean hasScreen = client.screen != null || client.getOverlay() != null;
+        if (client.level == null || hasScreen
+                || client.isPaused() || !client.isWindowActive()) {
+            dynamicScale.resetTiming();
+            dynamicScaleCamera = null;
+            return;
+        }
+        var camera = client.getCameraEntity();
+        if (camera == null) {
+            dynamicScale.resetTiming();
+            dynamicScaleCamera = null;
+            return;
+        }
+        float yaw = camera.getYRot();
+        float pitch = camera.getXRot();
+        float yawChange = (yaw - previousCameraYaw) % 360.0f;
+        if (yawChange > 180) yawChange -= 360;
+        if (yawChange < -180) yawChange += 360;
+        boolean cameraMoving = camera == dynamicScaleCamera
+                && (Math.abs(yawChange) > 0.01f || Math.abs(pitch - previousCameraPitch) > 0.01f);
+        dynamicScaleCamera = camera;
+        previousCameraYaw = yaw;
+        previousCameraPitch = pitch;
+        if (dynamicScale.update(System.nanoTime(), config.getTargetFrameRate(), config.aggressionLevel.strength,
+                config.getMinimumScale(), config.getScale(), cameraMoving)) {
+            resizeRenderTarget(false);
+            // Exclude render-target allocation time from the next sample.
+            dynamicScale.resetTiming();
+        }
     }
 
     @Nullable
@@ -303,12 +363,19 @@ public class RenderScale {
     }
 
     public void resizeRenderTarget() {
+        resizeRenderTarget(true);
+    }
+
+    private void resizeRenderTarget(boolean reloadResources) {
         resize(renderTarget);
-        resize(fsrIntermediateTarget);
+        // The FSR intermediate target is output-sized and is resized by the blit pass.
         //? <= 1.21.1 {
         /*resize(client.levelRenderer.entityTarget());
 
-        if (hasRun) client.levelRenderer.onResourceManagerReload(client.getResourceManager());
+        if (hasRun) {
+            if (reloadResources) client.levelRenderer.onResourceManagerReload(client.getResourceManager());
+            else client.levelRenderer.resize(client.getWindow().getWidth(), client.getWindow().getHeight());
+        }
         *///?}
     }
 
@@ -332,6 +399,11 @@ public class RenderScale {
 
         int scaledWidth = clamp(width, 1, 65536);
         int scaledHeight = clamp(height, 1, 65536);
+
+        if (renderTarget.width == scaledWidth && renderTarget.height == scaledHeight) {
+            shouldScale = prev;
+            return;
+        }
 
         //? >= 1.21.2 {
         renderTarget.resize(scaledWidth, scaledHeight);
