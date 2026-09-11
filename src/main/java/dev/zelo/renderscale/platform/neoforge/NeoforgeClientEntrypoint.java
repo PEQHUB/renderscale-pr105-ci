@@ -17,9 +17,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 //import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
@@ -47,6 +45,9 @@ public class NeoforgeClientEntrypoint {
 
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> NeoforgeClientEntrypoint.getConfigScreen(screen));
 
+        eventBus.addListener(this::onClientSetup);
+        eventBus.addListener(this::registerBindings);
+
         NeoForge.EVENT_BUS.addListener(this::onWorldRenderStart);
         NeoForge.EVENT_BUS.addListener(this::onClientTickEnd);
     }
@@ -55,30 +56,46 @@ public class NeoforgeClientEntrypoint {
         return AutoConfigClient.getConfigScreen(RenderScaleConfig.class, parent).get();
     }
 
+    private static RenderScale getOrCreateRenderScale() {
+        RenderScale renderScale = RenderScale.getInstance();
+        if (renderScale == null) {
+            RenderScale.init(Minecraft.getInstance());
+            renderScale = RenderScale.getInstance();
+        }
+        return renderScale;
+    }
+
     //? >= 1.21.10 {
     public void onWorldRenderStart(RenderLevelStageEvent.AfterLevel event) {
 //        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-        if (!RenderScale.getInstance().hasRun) {
-            RenderScale.getInstance().resizeRenderTarget();
-            RenderScale.getInstance().hasRun = true;
+        RenderScale renderScale = getOrCreateRenderScale();
+        if (!renderScale.hasRun) {
+            renderScale.resizeRenderTarget();
+            renderScale.hasRun = true;
         }
 //        }
     }
     //? } else {
     /^public void onWorldRenderStart(RenderLevelStageEvent event) {
 //        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-            if (!RenderScale.getInstance().hasRun) {
-                RenderScale.getInstance().resizeRenderTarget();
-                RenderScale.getInstance().hasRun = true;
+            RenderScale renderScale = getOrCreateRenderScale();
+            if (!renderScale.hasRun) {
+                renderScale.resizeRenderTarget();
+                renderScale.hasRun = true;
             }
 //        }
     }
     ^///? }
 
     public void onClientTickEnd(ClientTickEvent.Post event) {
-        if (Minecraft.getInstance().level == null && RenderScale.getInstance().hasRun) {
-            RenderScale.getInstance().hasRun = false;
+        RenderScale renderScale = getOrCreateRenderScale();
+        if (Minecraft.getInstance().level == null && renderScale.hasRun) {
+            renderScale.hasRun = false;
         }
+
+        //? <1.21.4 {
+        /^dev.zelo.renderscale.gametest.RenderScaleAutoTest.INSTANCE.tick(Minecraft.getInstance());
+        ^///?}
 
         while (keyBinding.consumeClick()) {
             //? > 26.1 {
@@ -93,27 +110,12 @@ public class NeoforgeClientEntrypoint {
 //        AutoConfigClient.getConfigHolder(RenderScaleConfig.class).load();
 //    }
 
-    //? < 1.21.11
-    //@EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
-    //? >= 1.21.11
-    @EventBusSubscriber(modid = Constants.MOD_ID, value = Dist.CLIENT)
-//    @EventBusSubscriber(modid = Constants.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public class EventHandler {
-//        @SubscribeEvent
-//        public static void registerReloadManager(AddClientReloadListenersEvent event) {
-//            event.addListener(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "load_config"),
-//                    (ResourceManagerReloadListener) c -> NeoforgeClientEntrypoint.onDatapackReload());
-//        }
+    public void onClientSetup(FMLClientSetupEvent event) {
+        RenderScale.init(Minecraft.getInstance());
+    }
 
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            RenderScale.init(Minecraft.getInstance());
-        }
-
-        @SubscribeEvent
-        public static void registerBindings(RegisterKeyMappingsEvent event) {
-            event.register(keyBinding);
-        }
+    public void registerBindings(RegisterKeyMappingsEvent event) {
+        event.register(keyBinding);
     }
 
 }

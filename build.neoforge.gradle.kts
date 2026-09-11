@@ -69,6 +69,16 @@ neoForge {
             jvmArgument("-Dmixin.debug.export=true")
             jvmArgument("-Dmixin.checks.interfaces=true")
         }
+        // Screenshot autotest, see RenderScaleAutoTest and scripts/run-gametests.sh
+        if (sc.eval(sc.current.version, "<1.21.4")) {
+            register("clientAutotest") {
+                client()
+                gameDirectory = file("run-gametest/")
+                ideName = "NeoForge Client Autotest (${sc.active?.version})"
+                jvmArgument("-Drenderscale.autotest")
+                jvmArgument("-Xmx2G")
+            }
+        }
 //        register("server") {
 //            server()
 //            gameDirectory = file("run/")

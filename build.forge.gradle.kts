@@ -42,6 +42,14 @@ legacyForge {
             ideName = "Forge Client (${sc.active?.version})"
             programArgument("--username=Dev")
         }
+        // Screenshot autotest, see RenderScaleAutoTest and scripts/run-gametests.sh
+        register("clientAutotest") {
+            client()
+            gameDirectory = file("run-gametest/")
+            ideName = "Forge Client Autotest (${sc.active?.version})"
+            jvmArgument("-Drenderscale.autotest")
+            jvmArgument("-Xmx2G")
+        }
 //        register("server") {
 //            server()
 //            gameDirectory = file("run/")

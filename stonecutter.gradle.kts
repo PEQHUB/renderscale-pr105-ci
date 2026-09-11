@@ -1,46 +1,17 @@
-@file:OptIn(dev.kikugie.stonecutter.StonecutterExperimentalAPI::class)
-
 plugins {
     alias(libs.plugins.stonecutter)
-    alias(libs.plugins.dotenv)
-    alias(libs.plugins.fabric.loom).apply(false)
-    alias(libs.plugins.fabric.loom.remap).apply(false)
+    alias(libs.plugins.mod.publish.plugin)
+    alias(libs.plugins.loom.back.compat).apply(false)
     alias(libs.plugins.neoforged.moddev).apply(false)
     alias(libs.plugins.jsonlang.postprocess).apply(false)
-    alias(libs.plugins.mod.publish.plugin).apply(false)
     alias(libs.plugins.kotlin.jvm).apply(false)
     alias(libs.plugins.devtools.ksp).apply(false)
     alias(libs.plugins.fletching.table).apply(false)
     alias(libs.plugins.legacyforge.moddev).apply(false)
+    id("mod-root")
 }
 
 stonecutter active file(".sc_active_version")
-
-stonecutter tasks {
-    val ordering = versionComparator.thenComparingInt { task ->
-        if (task.metadata.project.endsWith("fabric")) 1 else 0
-    }
-
-    listOf("publishModrinth", "publishCurseforge").forEach { taskName ->
-        gradle.allprojects {
-            if (project.tasks.findByName(taskName) != null) {
-                order(taskName, ordering)
-            }
-        }
-    }
-}
-
-tasks.register("runActiveClient") {
-    group = "stonecutter"
-    description = "Run client of the active Stonecutter version"
-    dependsOn(stonecutter.current!!.project + ":runClient")
-}
-
-//tasks.register("runActiveServer") {
-//    group = "stonecutter"
-//    description = "Run server of the active Stonecutter version"
-//    dependsOn(stonecutter.current!!.project + ":runServer")
-//}
 
 stonecutter parameters {
     constants.match(current.project.substringAfterLast('-'), "fabric", "neoforge", "forge")
@@ -53,12 +24,7 @@ stonecutter parameters {
 //    dependencies["iris"] = current.project.property("deps.iris") as String
 //    dependencies["sodium"] = current.project.property("deps.sodium") as String
 
-    constants["iris"] = sc.eval(current.project.substringAfterLast('-'), "!=forge")
-    constants["sodium"] = sc.eval(current.version, ">=1.21.11") || sc.eval(current.version, "1.21.1")
+    constants["iris"] = current.project.substringAfterLast('-') != "forge"
+    constants["sodium"] = current.parsed >= "1.21.11" || current.version == "1.21.1"
 
-}
-
-for (version in stonecutter.versions.map { it.version }.distinct()) tasks.register("publish$version") {
-    group = "publishing"
-    dependsOn(stonecutter.tasks.named("publishMods") { metadata.version == version })
 }

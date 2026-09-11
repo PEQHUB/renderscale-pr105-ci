@@ -65,6 +65,8 @@ public class ForgeEntrypoint {
             RenderScale.getInstance().hasRun = false;
         }
 
+        dev.zelo.renderscale.gametest.RenderScaleAutoTest.INSTANCE.tick(minecraft);
+
         while (KEY_BINDING.consumeClick()) {
             minecraft.setScreen(getConfigScreen(minecraft.screen));
         }

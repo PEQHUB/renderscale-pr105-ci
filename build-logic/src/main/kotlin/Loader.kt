@@ -1,20 +1,14 @@
 @file:Suppress("unused")
 
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
-import net.peanuuutz.tomlkt.Toml
+import me.modmuss50.mpp.platforms.modrinth.ModrinthEnvironment
 import org.gradle.api.NamedDomainObjectContainer
 import java.util.*
 
-private val JSON = Json { prettyPrint = true; encodeDefaults = true }
-private val TOML = Toml { }
-
 sealed class Loader(val id: String) {
-    abstract val jarTask: String
-    abstract val sourcesJarTask: String
     abstract val modManifestPath: String
     abstract val excludedResources: List<String>
 
@@ -22,8 +16,9 @@ sealed class Loader(val id: String) {
 
     abstract fun generateManifest(ctx: Context): String
 
-    sealed class FabricLike(id: String) : Loader(id) {
+    object Fabric : Loader("fabric") {
         override val isFabricLike = true
+        override val modManifestPath = "fabric.mod.json"
         override val excludedResources = listOf(
             "META-INF/mods.toml", "META-INF/neoforge.mods.toml", "aw/*.cfg", ".cache", "pack.mcmeta"
         )
@@ -38,23 +33,44 @@ sealed class Loader(val id: String) {
                 contact = mapOf(
                     "sources" to ctx.sourcesUrl, "issues" to ctx.issuesUrl, "homepage" to ctx.homepageUrl
                 ),
-                custom = buildJsonObject {
-                    putJsonObject("modmenu") {
-                        putJsonObject("links") {
-                            put("modmenu.discord", ctx.discordUrl)
+                custom = ctx.discordUrl.takeIf { it.isNotEmpty() }?.let { url ->
+                    buildJsonObject {
+                        putJsonObject("modmenu") {
+                            putJsonObject("links") {
+                                put("modmenu.discord", url)
+                            }
                         }
                     }
                 },
                 description = ctx.description,
                 icon = "assets/icon.png",
                 license = ctx.licenseName,
+                environment = when (ctx.environment) {
+                    ModrinthEnvironment.CLIENT_ONLY, ModrinthEnvironment.SINGLEPLAYER_ONLY -> "client"
+
+                    ModrinthEnvironment.DEDICATED_SERVER_ONLY -> "server"
+
+                    ModrinthEnvironment.SERVER_ONLY, ModrinthEnvironment.SERVER_ONLY_CLIENT_OPTIONAL,
+                    ModrinthEnvironment.CLIENT_ONLY_SERVER_OPTIONAL, ModrinthEnvironment.CLIENT_AND_SERVER,
+                    ModrinthEnvironment.CLIENT_OR_SERVER_PREFERS_BOTH, ModrinthEnvironment.CLIENT_OR_SERVER -> "*"
+                },
                 accessWidener = "aw/${ctx.currentMcVersion}.accesswidener",
-                entrypoints = mapOf(
-                    "client" to listOf("${ctx.modGroup}.${ctx.modId}.platform.fabric.FabricClientEntrypoint"),
-                    "modmenu" to listOf("${ctx.modGroup}.${ctx.modId}.compat.modmenu.ModMenuApiImpl"),
-                    "sodium:config_api_user" to listOf("${ctx.modGroup}.${ctx.modId}.compat.sodium.RenderScaleSodiumConfig"),
-                    "fabric-datagen" to listOf("${ctx.modGroup}.${ctx.modId}.platform.fabric.datagen.FabricDataGeneratorEntrypoint")
-                ),
+                entrypoints = buildMap {
+                    put("client", buildList {
+                        add("${ctx.modGroup}.${ctx.modId}.platform.fabric.FabricClientEntrypoint")
+                        // Screenshot autotest driver for versions without the Client Gametest API
+                        if (ctx.stonecutter.eval(ctx.currentMcVersion, "<1.21.4")) {
+                            add("${ctx.modGroup}.${ctx.modId}.gametest.RenderScaleAutoTestFabric")
+                        }
+                    })
+                    put("modmenu", listOf("${ctx.modGroup}.${ctx.modId}.compat.modmenu.ModMenuApiImpl"))
+                    put("sodium:config_api_user", listOf("${ctx.modGroup}.${ctx.modId}.compat.sodium.RenderScaleSodiumConfig"))
+                    put("fabric-datagen", listOf("${ctx.modGroup}.${ctx.modId}.platform.fabric.datagen.FabricDataGeneratorEntrypoint"))
+                    // Client Gametest API only exists for 1.21.4+
+                    if (ctx.stonecutter.eval(ctx.currentMcVersion, ">=1.21.4")) {
+                        put("fabric-client-gametest", listOf("${ctx.modGroup}.${ctx.modId}.gametest.RenderScaleClientGameTest"))
+                    }
+                },
                 mixins = listOf("${ctx.modId}.mixins.json"),
                 depends = ctx.extension.dependencies.required.associate { it.modid.get() to it.fabricLikeVersionRange.get() },
                 recommends = ctx.extension.dependencies.optional.associate { it.modid.get() to it.fabricLikeVersionRange.get() },
@@ -65,21 +81,7 @@ sealed class Loader(val id: String) {
         }
     }
 
-    object FabricM : FabricLike("fabric") {
-        override val jarTask = "jar"
-        override val sourcesJarTask = "sourcesJar"
-        override val modManifestPath = "fabric.mod.json"
-    }
-
-    object FabricO : FabricLike("fabric") {
-        override val jarTask = "remapJar"
-        override val sourcesJarTask = "remapSourcesJar"
-        override val modManifestPath = "fabric.mod.json"
-    }
-
     sealed class ForgeLike(id: String) : Loader(id) {
-        override val jarTask = "jar"
-        override val sourcesJarTask = "sourcesJar"
         override val excludedResources = listOf(
             "fabric.mod.json", "aw/*.accesswidener", ".cache"
         )
@@ -112,7 +114,10 @@ sealed class Loader(val id: String) {
             }
 
             val manifest = ForgeManifest(
-                license = ctx.licenseName, issueTrackerURL = ctx.issuesUrl, mods = listOf(
+                license = ctx.licenseName,
+                issueTrackerURL = ctx.issuesUrl,
+                clientSideOnly = !ctx.environmentPhysicalServer,
+                mods = listOf(
                     ForgeMod(
                         modId = ctx.modId,
                         displayName = ctx.modName,
@@ -120,6 +125,7 @@ sealed class Loader(val id: String) {
                         displayURL = ctx.homepageUrl,
                         modUrl = ctx.homepageUrl,
                         logoFile = "assets/icon.png",
+                        iconFile = "assets/icon.png", // NeoForge 26.2 +
                         authors = ctx.authors.joinToString(", "),
                         credits = "${ctx.authors.joinToString(", ")} Contributors: ${ctx.contributors.joinToString(", ")}",
                         description = ctx.description
@@ -148,13 +154,11 @@ sealed class Loader(val id: String) {
         override val modManifestPath = "META-INF/mods.toml"
         override val excludedResources = super.excludedResources + "META-INF/neoforge.mods.toml"
         val mixinConfigAttribute = "MixinConfigs"
-        override val jarTask = "reobfJar"
     }
 
     companion object {
         fun of(id: String): Loader = when (id) {
-            "fabric-o" -> FabricO
-            "fabric-m" -> FabricM
+            "fabric" -> Fabric
             "neoforge" -> NeoForge
             "forge" -> Forge
             else -> error("Unknown loader: '$id'")

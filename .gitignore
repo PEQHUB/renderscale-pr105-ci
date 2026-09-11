@@ -8,6 +8,13 @@ build/
 !**/src/test/**/build/
 
 run/
+
+# Debug stuff
+scripts/
+run-gametest/
+gametest-screenshots/
+test-artifacts/
+
 #versions/datagen
 
 ### IntelliJ IDEA ###
@@ -48,9 +55,11 @@ bin/
 .DS_Store
 
 ### Jetbrains ###
-.idea/
+.idea/*
 !.idea/icon.png
 !.idea/icon.svg
 !.idea/externalDependencies.xml
+!.idea/runConfigurations
+.idea/runConfigurations/*
 !.idea/runConfigurations/Run_Active_Client.xml
 !.idea/runConfigurations/Run_Active_Server.xml

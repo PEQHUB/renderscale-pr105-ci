@@ -1,3 +1,5 @@
+loomx.loom_version = "1.16-SNAPSHOT"
+
 mod.id = "renderscale"
 mod.name = "RenderScale"
 mod.group = "dev.zelo"
@@ -14,6 +16,7 @@ mod.sources_url = "https://github.com/Zolo101/RenderScale"
 mod.homepage_url = "https://github.com/Zolo101/RenderScale"
 mod.issues_url = "https://github.com/Zolo101/RenderScale/issues"
 mod.discord_url = "https://discord.gg/YVuuF9KB5j"
+mod.environment = "client_only"
 
 [[mod.pom.developers]]
 id = "zelo101"
