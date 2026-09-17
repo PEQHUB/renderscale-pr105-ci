@@ -110,15 +110,23 @@ dependencies {
     }
 
     // sodium >0.8, so 1.21.11+ and 1.21.1
-    try {
-        prop("deps.sodium")
+    if (hasProperty("deps.sodium")) {
         implementation("net.caffeinemc:sodium-neoforge-api:${prop("deps.sodium")}")
-    } catch (e: ExtraPropertiesExtension.UnknownPropertyException) {}
+    }
 
 //    compileOnly("maven.modrinth:iris:${property("deps.iris")}-neoforge")
 
     // iris releases faster on fabric, this doesn't seem to cause any problems using it in neoforge
     compileOnly("maven.modrinth:iris:${property("deps.iris")}-fabric")
+
+    // for testing
+//    try {
+////        prop("deps.kubejs")
+//        implementation("maven.modrinth:sodium:5EEI3Guz")
+//        implementation("maven.modrinth:kubejs:F2nzeC19")
+//        implementation("maven.modrinth:rhino:SqkDvOLG")
+//    } catch (e: ExtraPropertiesExtension.UnknownPropertyException) {}
+
 }
 
 tasks.named("createMinecraftArtifacts") {
