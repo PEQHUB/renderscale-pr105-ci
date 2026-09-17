@@ -16,6 +16,23 @@ public final class ScreenshotVerifier {
     private ScreenshotVerifier() {
     }
 
+    /** Filtered upscaling must preserve the scene and native-resolution hotbar. */
+    public static void verifyFilteredScaling(Path nativePath, Path scaledPath) {
+        BufferedImage nativeImage = readImage(nativePath);
+        BufferedImage scaledImage = readImage(scaledPath);
+        int w = nativeImage.getWidth();
+        int h = nativeImage.getHeight();
+        if (scaledImage.getWidth() != w || scaledImage.getHeight() != h || isMonochrome(scaledImage)) {
+            throw new AssertionError("Filtered scaling produced a blank image or changed the output size");
+        }
+        double sceneDifference = meanChannelDifference(nativeImage, scaledImage, 0, 0, w, h - 22);
+        double hotbarDifference = meanChannelDifference(nativeImage, scaledImage, w / 2 - 91, h - 22, w / 2 + 91, h);
+        if (sceneDifference > 0.04 || hotbarDifference > 0.01) {
+            throw new AssertionError("Filtered scaling changed the scene or native hotbar: scene="
+                    + sceneDifference + ", hotbar=" + hotbarDifference);
+        }
+    }
+
     /** Throws {@link AssertionError} if scaling is broken or the UI got scaled too. */
     public static void verifyScaling(Path nativePath, Path scaledPath) {
         BufferedImage nativeImage = readImage(nativePath);

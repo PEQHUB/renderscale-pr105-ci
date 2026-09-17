@@ -114,7 +114,7 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
         configureIdea()
         configureProcessResources(ctx)
         configureJava(ctx)
-//        configureStandaloneTests(ctx)
+        configureStandaloneTests(ctx)
         registerBuildAndCollectTask(ctx)
         limitMinecraftArtifactGenerationConcurrency()
 
@@ -149,26 +149,26 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
         }
     }
 
-//    private fun Project.configureStandaloneTests(ctx: Context) {
-//        val testSources = the<JavaPluginExtension>().sourceSets.named("test")
-//        val launcher = extensions.getByType<JavaToolchainService>().launcherFor {
-//            languageVersion.set(JavaLanguageVersion.of(ctx.javaVersion.majorVersion))
-//        }
-//        val controllerTest = tasks.register<JavaExec>("testDynamicScale") {
-//            group = "verification"
-//            description = "Run the standalone Dynamic Scale controller assertions"
-//            dependsOn("testClasses")
-//            classpath = testSources.get().runtimeClasspath
-//            mainClass.set("dev.zelo.renderscale.DynamicScaleControllerTest")
-//            javaLauncher.set(launcher)
-//        }
-//        tasks.named<Test>("test") {
-//            // The existing controller test uses main(), rather than a JUnit test engine.
-//            // Run its assertions explicitly; Gradle 9 otherwise fails test discovery.
-//            dependsOn(controllerTest)
-//            failOnNoDiscoveredTests.set(false)
-//        }
-//    }
+    private fun Project.configureStandaloneTests(ctx: Context) {
+        val testSources = the<JavaPluginExtension>().sourceSets.named("test")
+        val launcher = extensions.getByType<JavaToolchainService>().launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(ctx.javaVersion.majorVersion))
+        }
+        val controllerTest = tasks.register<JavaExec>("testDynamicScale") {
+            group = "verification"
+            description = "Run the standalone Dynamic Scale controller assertions"
+            dependsOn("testClasses")
+            classpath = testSources.get().runtimeClasspath
+            mainClass.set("dev.zelo.renderscale.DynamicScaleControllerTest")
+            javaLauncher.set(launcher)
+        }
+        tasks.named<Test>("test") {
+            // The existing controller test uses main(), rather than a JUnit test engine.
+            // Run its assertions explicitly; Gradle 9 otherwise fails test discovery.
+            dependsOn(controllerTest)
+            failOnNoDiscoveredTests.set(false)
+        }
+    }
 
     private fun Project.registerGenerateManifestTask(ctx: Context) {
         val manifestOutputDir = layout.buildDirectory.dir("generated/modManifest")
@@ -202,6 +202,16 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
             // but fsr shaders are 1.21.11 anyway so
             if (ctx.stonecutter.eval(ctx.currentMcVersion, "<1.21.11")) {
                 exclude("assets/${ctx.modId}/shaders/**")
+            }
+            // TODO: Perhaps use stonecutter to replace it
+            if (ctx.stonecutter.eval(ctx.currentMcVersion, ">=26.3")) {
+                filesMatching("assets/${ctx.modId}/shaders/core/*.fsh") {
+                    // RenderPearl compiles both backends with ShaderC.
+                    filter { line: String ->
+                        line.replace("#moj_import", "#include")
+                            .replace("out vec4 fragColor;", "layout(location = 0) out vec4 fragColor;")
+                    }
+                }
             }
             exclude(excluded)
         }

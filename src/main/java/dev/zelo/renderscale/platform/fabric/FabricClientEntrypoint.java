@@ -25,7 +25,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
 import net.minecraft.client.KeyMapping;
 
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 //? <= 1.21.6
 //import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -42,9 +42,9 @@ public class FabricClientEntrypoint implements ClientModInitializer {
         //? >= 1.21.9
         KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("renderscale", "category"));
         //? >= 26.1 {
-        keyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.renderscale.options", /*? < 26.2 {*/ /*GLFW.GLFW_KEY_O *//*?} else {*/ GLFW.GLFW_KEY_U /*?}*/, category));
+        keyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.renderscale.options", /*? < 26.2 {*/ /*InputConstants.KEY_O *//*?} else {*/ InputConstants.KEY_U /*?}*/, category));
         //?} else {
-        /*keyBinding = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.renderscale.options", GLFW.GLFW_KEY_O, /^? >= 1.21.9 {^/ category /^?} else {^/ /^"key.renderscale.category" ^//^?}^/));
+        /*keyBinding = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.renderscale.options", InputConstants.KEY_O, /^? >= 1.21.9 {^/ category /^?} else {^/ /^"key.renderscale.category" ^//^?}^/));
          *///?}
 
         /*? >= 26 {*/ LevelRenderEvents /*?} else {*/ /*WorldRenderEvents *//*?}*/.START_MAIN.register(worldRenderContext -> {

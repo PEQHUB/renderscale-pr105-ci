@@ -1,19 +1,28 @@
 package dev.zelo.renderscale;
 
+//~ if >=26.3 'bindTexture' -> 'setUniform' {
+
 import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 
 //? >= 1.21.11 {
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+//? >=26.3 {
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+//?} else
+//import com.mojang.blaze3d.pipeline.RenderPipeline;
 
 //? 1.21.11
 //import com.mojang.blaze3d.platform.DepthTestFunction;
 
-import static net.minecraft.client.renderer.RenderPipelines.GLOBALS_SNIPPET;
+//? <26.3
+//import static net.minecraft.client.renderer.RenderPipelines.GLOBALS_SNIPPET;
 //?}
 import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+//? <=26.1 {
+/*import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+*///?}
 import dev.zelo.renderscale.accessors.MainRenderTargetSetter;
 import dev.zelo.renderscale.config.RenderScaleConfig;
 import dev.zelo.renderscale.platform.Platform;
@@ -24,7 +33,10 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.Nullable;
 
 //? > 26.1 {
-import com.mojang.blaze3d.PrimitiveTopology;
+//? >=26.3 {
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+//?} else
+//import com.mojang.blaze3d.PrimitiveTopology;
 import net.minecraft.client.renderer.BindGroupLayouts;
 //?}
 
@@ -32,8 +44,13 @@ import net.minecraft.client.renderer.BindGroupLayouts;
 //import dev.zelo.renderscale.accessors.GICommandEncoderThing;
 
 //? >= 1.21.5 {
-import com.mojang.blaze3d.systems.RenderPass;
+//? >=26.3 {
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.textures.FilterMode;
+//?} else {
+/*import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.textures.FilterMode;
+*///?}
 import net.minecraft.client.renderer.RenderPipelines;
 //?}
 
@@ -80,7 +97,12 @@ public class RenderScale {
 
     //? >= 1.21.11 {
     public static RenderPipeline FSR_EASU_PIPELINE =
-            RenderPipeline.builder(GLOBALS_SNIPPET)
+            //? >=26.3 {
+            RenderPipeline.builder().withBindGroupLayout(BindGroupLayouts.GLOBALS)
+                .withColorTargetState(ColorTargetState.DEFAULT)
+                .withShaderDefine("RENDERSCALE_EXPLICIT_GATHER")
+            //?} else
+            //RenderPipeline.builder(GLOBALS_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath("renderscale", "pipeline/fsr_easu"))
                 .withVertexShader("core/screenquad")
                 .withFragmentShader(Identifier.fromNamespaceAndPath("renderscale", "core/easu"))
@@ -101,7 +123,11 @@ public class RenderScale {
                 .build();
 
     public static RenderPipeline FSR_RCAS_PIPELINE =
-            RenderPipeline.builder(GLOBALS_SNIPPET)
+            //? >=26.3 {
+            RenderPipeline.builder().withBindGroupLayout(BindGroupLayouts.GLOBALS)
+                .withColorTargetState(ColorTargetState.DEFAULT)
+            //?} else
+            //RenderPipeline.builder(GLOBALS_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath("renderscale", "pipeline/fsr_rcas"))
                     .withVertexShader("core/screenquad")
                     .withFragmentShader(Identifier.fromNamespaceAndPath("renderscale", "core/rcas"))
@@ -433,9 +459,9 @@ public class RenderScale {
             }
 
             try (RenderPass renderPass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "FSR: EASU", fsrIntermediateTarget.getColorTextureView(), /*? > 26.1 {*/ Optional /*?} else {*/ /*OptionalInt *//*?}*/.empty())) {
-                renderPass.setPipeline(FSR_EASU_PIPELINE);
+                setPipeline(renderPass, FSR_EASU_PIPELINE);
                 RenderSystem.bindDefaultUniforms(renderPass);
-                renderPass.bindTexture("InSampler", input.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(filter));
+                renderPass.setUniform("InSampler", input.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(filter));
                 //? < 26.2 {
                 /*renderPass.draw(0, 3);
                  *///?} else
@@ -443,9 +469,9 @@ public class RenderScale {
             }
 
             try (RenderPass renderPass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "FSR: RCAS", output.getColorTextureView(), /*? > 26.1 {*/ Optional /*?} else {*/ /*OptionalInt *//*?}*/.empty())) {
-                renderPass.setPipeline(FSR_RCAS_PIPELINE);
+                setPipeline(renderPass, FSR_RCAS_PIPELINE);
                 RenderSystem.bindDefaultUniforms(renderPass);
-                renderPass.bindTexture("InSampler", fsrIntermediateTarget.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(filter));
+                renderPass.setUniform("InSampler", fsrIntermediateTarget.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(filter));
                 //? < 26.2 {
                 /*renderPass.draw(0, 3);
                  *///?} else
@@ -455,9 +481,9 @@ public class RenderScale {
             try (RenderPass renderPass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Blit render target", output.getColorTextureView(), /*? > 26.1 {*/ Optional /*?} else {*/ /*OptionalInt *//*?}*/.empty())) {
                 // Tracy blit is weird because I believe it's technically a debug pass.
                 // However, it looks exactly the same as vanilla, so I'm assuming it's fine.
-                renderPass.setPipeline(RenderPipelines.TRACY_BLIT);
+                setPipeline(renderPass, RenderPipelines.TRACY_BLIT);
                 RenderSystem.bindDefaultUniforms(renderPass);
-                renderPass.bindTexture("InSampler", input.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(filter));
+                renderPass.setUniform("InSampler", input.getColorTextureView(), RenderSystem.getSamplerCache().getClampToEdge(filter));
                 //? < 26.2 {
                 /*renderPass.draw(0, 3);
                  *///?} else
@@ -469,9 +495,17 @@ public class RenderScale {
 //        try (RenderPass renderPass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Blit render target", output.getDepthTextureView(), OptionalInt.empty())) {
 ////            renderPass.setPipeline(RenderPipelines.FOG_SNIPPET);
 //            RenderSystem.bindDefaultUniforms(renderPass);
-//            renderPass.bindTexture("InSampler2", input.getDepthTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
+//            renderPass.setUniform("InSampler2", input.getDepthTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
 //            renderPass.draw(0, 3);
 //        }
     }
+
+    private static void setPipeline(RenderPass renderPass, RenderPipeline pipeline) {
+        //? >=26.3 {
+        renderPass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
+        //?} else
+        //renderPass.setPipeline(pipeline);
+    }
     //?}
 }
+//~}

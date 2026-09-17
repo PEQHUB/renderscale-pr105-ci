@@ -50,7 +50,7 @@ public abstract class MixinWindow {
 
     // i think this has to do with mixin extras, its not mixing in this
     @Inject(method = "onFramebufferResize", at = @At("RETURN"))
-    private void renderScale$onFramebufferResize(long window, int framebufferWidth, int framebufferHeight, CallbackInfo ci) {
+    private void renderScale$onFramebufferResize(CallbackInfo ci) {
         Constants.LOG.info("Size changed to {}x{} {}x{} {}x{}",
                 getWidth(), getHeight(),
                 getScreenWidth(), getScreenHeight(),

@@ -18,7 +18,10 @@ public class RenderScaleClientGameTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext context) {
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            //? >=26.3 {
+            singleplayer.getConnection().waitForChunksRender();
+            //?} else
+            //singleplayer.getClientLevel().waitForChunksRender();
 
             singleplayer.getServer().runCommand("fill -1 148 -1 1 148 1 minecraft:barrier");
             singleplayer.getServer().runCommand("tp @p 0.5 149.0 0.5 0 0");
@@ -46,11 +49,74 @@ public class RenderScaleClientGameTest implements FabricClientGameTest {
             Path scaledShot = context.takeScreenshot("renderscale_scaled");
 
             ScreenshotVerifier.verifyScaling(nativeShot, scaledShot);
-            verifyDynamicScale(context, nativeShot);
+            //? >=26.3
+            verifyFilters(context, nativeShot);
+            verifyDynamicScale(context);
+            //? >=26.3
+            verifyWindowResize(context);
         }
     }
 
-    private static void verifyDynamicScale(ClientGameTestContext context, Path nativeShot) {
+    //? >=26.3 {
+    private static void verifyWindowResize(ClientGameTestContext context) {
+        int oldWidth = context.computeOnClient(client -> client.getWindow().getScreenWidth());
+        int oldHeight = context.computeOnClient(client -> client.getWindow().getScreenHeight());
+        try {
+            context.runOnClient(client -> client.getWindow().setWindowed(960, 540));
+            context.waitFor(client -> client.getWindow().getScreenWidth() == 960
+                    && client.getWindow().getScreenHeight() == 540);
+            setRenderScale(context, 1.0f);
+            context.waitTicks(5);
+            Path nativeShot = context.takeScreenshot("renderscale_resized_native");
+            setRenderScale(context, TEST_SCALE);
+            context.waitTicks(5);
+            context.runOnClient(client -> {
+                var target = RenderScale.getInstance().renderTarget;
+                if (target.width != client.getWindow().getWidth() / 2
+                        || target.height != client.getWindow().getHeight() / 2) {
+                    throw new AssertionError("Resizing the SDL window must resize the scaled render target");
+                }
+            });
+            ScreenshotVerifier.verifyScaling(nativeShot, context.takeScreenshot("renderscale_resized"));
+        } finally {
+            context.runOnClient(client -> client.getWindow().setWindowed(oldWidth, oldHeight));
+            setRenderScale(context, 1.0f);
+        }
+    }
+    //?}
+
+    //? >=26.3 {
+    private static void verifyFilters(ClientGameTestContext context, Path nativeShot) {
+        try {
+            setRenderScale(context, TEST_SCALE);
+            context.runOnClient(client -> {
+                RenderScale.getConfig().forceLinear = true;
+                RenderScale.CONFIG.save();
+            });
+            context.waitTicks(5);
+            ScreenshotVerifier.verifyFilteredScaling(nativeShot, context.takeScreenshot("renderscale_linear"));
+
+            context.runOnClient(client -> {
+                // Fail the test directly if ShaderC cannot compile either FSR pass.
+                com.mojang.blaze3d.systems.RenderSystem.getCompiledPipeline(RenderScale.FSR_EASU_PIPELINE);
+                com.mojang.blaze3d.systems.RenderSystem.getCompiledPipeline(RenderScale.FSR_RCAS_PIPELINE);
+                RenderScale.getConfig().forceLinear = false;
+                RenderScale.getConfig().fsr = true;
+                RenderScale.CONFIG.save();
+            });
+            context.waitTicks(5);
+            ScreenshotVerifier.verifyFilteredScaling(nativeShot, context.takeScreenshot("renderscale_fsr"));
+        } finally {
+            context.runOnClient(client -> {
+                RenderScale.getConfig().fsr = false;
+                RenderScale.getConfig().forceLinear = false;
+                RenderScale.CONFIG.save();
+            });
+        }
+    }
+    //?}
+
+    private static void verifyDynamicScale(ClientGameTestContext context) {
         try {
             context.runOnClient(client -> {
                 client.options.enableVsync().set(false);
@@ -58,7 +124,7 @@ public class RenderScaleClientGameTest implements FabricClientGameTest {
                 RenderScale.getConfig().scale = 1.0f;
                 RenderScale.getConfig().targetFrameRate = 1000;
                 RenderScale.getConfig().aggressionLevel = dev.zelo.renderscale.config.RenderScaleConfig.Aggression.EXTREME;
-                RenderScale.getConfig().minimumScale = 50;
+                RenderScale.getConfig().minimumScale = 0.5f;
                 RenderScale.CONFIG.save();
             });
             context.waitTicks(20);
@@ -83,7 +149,6 @@ public class RenderScaleClientGameTest implements FabricClientGameTest {
                 }
             });
             Path dynamicShot = context.takeScreenshot("renderscale_dynamic");
-            ScreenshotVerifier.verifyScaling(nativeShot, dynamicShot);
 
             // Change the target without resetting the controller to exercise upward recovery.
             context.runOnClient(client -> RenderScale.getConfig().targetFrameRate = 1);
@@ -105,6 +170,10 @@ public class RenderScaleClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("Recovery must restore the world render target size");
                 }
             });
+            // Compare both resolutions after the same camera movement and at the
+            // same frame cap so hand animation and lighting have matching state.
+            context.waitTicks(20);
+            ScreenshotVerifier.verifyScaling(context.takeScreenshot("renderscale_recovered"), dynamicShot);
         } finally {
             context.runOnClient(client -> {
                 RenderScale.getConfig().targetFrameRate = 0;

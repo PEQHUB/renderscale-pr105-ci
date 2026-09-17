@@ -14,6 +14,26 @@ uniform sampler2D InSampler;
 
 out vec4 fragColor;
 
+#ifdef RENDERSCALE_EXPLICIT_GATHER
+// RenderPearl translates OpenGL shaders to GLSL 330, where SPIRV-Cross cannot
+// emit textureGather with a nonzero component. Match its four texels explicitly.
+vec4 renderScaleGather(vec2 p, int component)
+{
+    ivec2 size = textureSize(InSampler, 0);
+    ivec2 base = ivec2(floor(p * vec2(size) - 0.5));
+    ivec2 maximum = size - ivec2(1);
+    return vec4(
+        texelFetch(InSampler, clamp(base + ivec2(0, 1), ivec2(0), maximum), 0)[component],
+        texelFetch(InSampler, clamp(base + ivec2(1, 1), ivec2(0), maximum), 0)[component],
+        texelFetch(InSampler, clamp(base + ivec2(1, 0), ivec2(0), maximum), 0)[component],
+        texelFetch(InSampler, clamp(base, ivec2(0), maximum), 0)[component]
+    );
+}
+#define RENDERSCALE_GATHER(p, component) renderScaleGather(p, component)
+#else
+#define RENDERSCALE_GATHER(p, component) textureGather(InSampler, p, component)
+#endif
+
 /*
  * These callbacks must exist before importing ffx_fsr1.glsl.
  *
@@ -22,17 +42,17 @@ out vec4 fragColor;
  */
 AF4 FsrEasuRF(AF2 p)
 {
-return textureGather(InSampler, p, 0);
+return RENDERSCALE_GATHER(p, 0);
 }
 
 AF4 FsrEasuGF(AF2 p)
 {
-return textureGather(InSampler, p, 1);
+return RENDERSCALE_GATHER(p, 1);
 }
 
 AF4 FsrEasuBF(AF2 p)
 {
-return textureGather(InSampler, p, 2);
+return RENDERSCALE_GATHER(p, 2);
 }
 
 #moj_import <renderscale:ffx_fsr1.glsl>

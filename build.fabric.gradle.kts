@@ -20,7 +20,6 @@ stonecutter {
 platform {
     loader = "fabric"
     dependencies {
-        // TODO: Remove minecraft dependency? Sodium & Iris do it
         required("minecraft") {
             fabricLikeVersionRange = if (sc.current.parsed >= "26") "${prop("deps.minecraft")}.*" else prop("deps.minecraft")
         }

@@ -31,8 +31,9 @@ void FsrRcasInputF(inout AF1 r, inout AF1 g, inout AF1 b)
 void main()
 {
 AU2 outputPixel = AU2(gl_FragCoord.xy);
-AU4 fsrConst0;
-FsrRcasCon(fsrConst0, 0.2);
+// FsrRcasF only uses the 32-bit sharpness in con.x. Avoid generating the unused
+// half-float constants, which require packing functions absent from GLSL 330.
+AU4 fsrConst0 = AU4(floatBitsToUint(exp2(-0.2)), 0u, 0u, 0u);
 
 AF3 colour;
 FsrRcasF(
