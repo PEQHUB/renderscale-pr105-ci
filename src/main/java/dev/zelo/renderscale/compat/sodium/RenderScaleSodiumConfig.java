@@ -4,6 +4,7 @@ package dev.zelo.renderscale.compat.sodium;
 import dev.zelo.renderscale.RenderScale;
 import dev.zelo.renderscale.config.RenderScaleConfig;
 import net.caffeinemc.mods.sodium.api.config.ConfigEntryPoint;
+import net.caffeinemc.mods.sodium.api.config.ConfigState;
 import net.caffeinemc.mods.sodium.api.config.StorageEventHandler;
 import net.caffeinemc.mods.sodium.api.config.option.OptionImpact;
 import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
@@ -71,18 +72,23 @@ public class RenderScaleSodiumConfig implements ConfigEntryPoint {
                         .addOptionGroup(builder.createOptionGroup()
                                 .addOption(builder.createIntegerOption(TARGET_FRAME_RATE)
                                         .setName(Component.translatable("text.autoconfig.renderscale.option.targetFrameRate"))
-                                        .setTooltip(Component.translatable("text.autoconfig.renderscale.option.targetFrameRate.@Tooltip"))
+                                        .setTooltip(value -> dynamicScaleTooltip("targetFrameRate"))
+                                        // Shader state changes outside Sodium's option dependency graph.
+                                        .setEnabledProvider(state -> RenderScaleConfig.isDynamicScaleAvailable(), ConfigState.UPDATE_ON_REBUILD)
+                                        .setControlHiddenWhenDisabled(false)
                                         .setStorageHandler(this.storageHandler)
                                         .setBinding(v -> config().targetFrameRate = v, () -> config().getTargetFrameRate())
                                         .setDefaultValue(0)
-                                        .setRange(0, 1000, 10)
+                                        .setRange(0, 540, 10)
                                         .setValueFormatter(value -> value == 0
                                                 ? Component.translatable("text.autoconfig.renderscale.option.targetFrameRate.off")
                                                 : Component.literal(value + " FPS"))
                                 )
                                 .addOption(builder.createIntegerOption(AGGRESSION)
                                         .setName(Component.translatable("text.autoconfig.renderscale.option.aggression"))
-                                        .setTooltip(Component.translatable("text.autoconfig.renderscale.option.aggression.@Tooltip"))
+                                        .setTooltip(value -> dynamicScaleTooltip("aggression"))
+                                        .setEnabledProvider(state -> RenderScaleConfig.isDynamicScaleAvailable(), ConfigState.UPDATE_ON_REBUILD)
+                                        .setControlHiddenWhenDisabled(false)
                                         .setStorageHandler(this.storageHandler)
                                         .setBinding(v -> config().aggressionLevel = RenderScaleConfig.Aggression.values()[v],
                                                 () -> config().aggressionLevel.ordinal())
@@ -94,7 +100,9 @@ public class RenderScaleSodiumConfig implements ConfigEntryPoint {
                                 )
                                 .addOption(builder.createIntegerOption(MINIMUM_SCALE)
                                         .setName(Component.translatable("text.autoconfig.renderscale.option.minimumScale"))
-                                        .setTooltip(Component.translatable("text.autoconfig.renderscale.option.minimumScale.@Tooltip"))
+                                        .setTooltip(value -> dynamicScaleTooltip("minimumScale"))
+                                        .setEnabledProvider(state -> RenderScaleConfig.isDynamicScaleAvailable(), ConfigState.UPDATE_ON_REBUILD)
+                                        .setControlHiddenWhenDisabled(false)
                                         .setStorageHandler(this.storageHandler)
                                         .setBinding(this::setMinimumScalePercent, this::getMinimumScalePercent)
                                         .setDefaultValue(10)
@@ -129,6 +137,13 @@ public class RenderScaleSodiumConfig implements ConfigEntryPoint {
 
     private static RenderScaleConfig config() {
         return RenderScale.getConfig();
+    }
+
+    private static Component dynamicScaleTooltip(String option) {
+        if (!RenderScaleConfig.isDynamicScaleAvailable()) {
+            return Component.translatable("text.autoconfig.renderscale.category.dynamic.unavailable");
+        }
+        return Component.translatable("text.autoconfig.renderscale.option." + option + ".@Tooltip");
     }
 
     private int getScalePercent() {

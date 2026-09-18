@@ -9,6 +9,12 @@ import me.shedaniel.autoconfig.annotation.Config;
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
 
+//? if =1.21.1 {
+/*import me.shedaniel.clothconfig2.gui.entries.TooltipListEntry;
+import net.minecraft.network.chat.Component;
+import java.util.Optional;
+*///?}
+
 //? iris
 import net.irisshaders.iris.api.v0.IrisApi;
 
@@ -18,11 +24,14 @@ public class RenderScaleConfig implements ConfigData {
     public boolean forceLinear = false;
 
     @ConfigEntry.Category("dynamic")
+    // Tooltips on 1.21.1 come from the compatibility transformer below.
+    //? !=1.21.1
     @ConfigEntry.Gui.Tooltip()
 //    @ConfigEntry.BoundedDiscrete(min = 0, max = 1000)
     public int targetFrameRate = 0;
 
     @ConfigEntry.Category("dynamic")
+    //? !=1.21.1
     @ConfigEntry.Gui.Tooltip()
     @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
     public Aggression aggressionLevel = Aggression.NORMAL;
@@ -48,6 +57,7 @@ public class RenderScaleConfig implements ConfigData {
     }
 
     @ConfigEntry.Category("dynamic")
+    //? !=1.21.1
     @ConfigEntry.Gui.Tooltip()
 //    @ConfigEntry.BoundedDiscrete(min = 10, max = 100)
     public float minimumScale = 0.1f;
@@ -72,6 +82,26 @@ public class RenderScaleConfig implements ConfigData {
     public static ConfigHolder<RenderScaleConfig> init() {
         // Register config
         ConfigHolder<RenderScaleConfig> holder = AutoConfig.register(RenderScaleConfig.class, JanksonConfigSerializer::new);
+
+        //? if =1.21.1 {
+        /*AutoConfig.getGuiRegistry(RenderScaleConfig.class).registerPredicateTransformer(
+                (entries, key, field, config, defaults, registry) -> {
+                    boolean available = isDynamicScaleAvailable();
+                    for (var entry : entries) {
+                        entry.setEditable(available);
+                        if (entry instanceof TooltipListEntry<?> tooltipEntry) {
+                            tooltipEntry.setTooltipSupplier(() -> Optional.of(new Component[] {
+                                    Component.translatable(available ? key + ".@Tooltip"
+                                            : "text.autoconfig.renderscale.category.dynamic.unavailable")
+                            }));
+                        }
+                    }
+                    return entries;
+                }, field -> {
+                    ConfigEntry.Category category = field.getAnnotation(ConfigEntry.Category.class);
+                    return category != null && category.value().equals("dynamic");
+                });
+        *///?}
 
         // Change resolution upon save!
         holder.registerSaveListener((manager, data) -> {
@@ -103,7 +133,17 @@ public class RenderScaleConfig implements ConfigData {
     }
 
     public boolean isDynamicScaleEnabled() {
-        if (targetFrameRate <= 0) return false;
+        return targetFrameRate > 0 && isDynamicScaleAvailable();
+    }
+
+    public static boolean isDynamicScaleAvailable() {
+        // Iris on 1.21.1 stutters when dynamic scaling repeatedly resizes shader targets.
+        // Keep the saved settings so scaling can resume when shaders are disabled.
+        //? if =1.21.1 && iris {
+        /*if (RenderScale.PLATFORM.isModLoaded("iris") && IrisApi.getInstance().isShaderPackInUse()) {
+            return false;
+        }
+        *///?}
         return true;
     }
 

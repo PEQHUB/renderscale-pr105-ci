@@ -70,7 +70,8 @@ neoForge {
             ideName = "NeoForge Client (${sc.active?.version})"
             programArgument("--username=Dev")
 
-            jvmArgument("-Dmixin.debug=true")
+            // mixin.debug countInjections causes iris to crash for
+            // what I believe is because we're using compileOnly iris-fabric in deps...
             jvmArgument("-Dmixin.debug.verbose=true")
             jvmArgument("-Dmixin.debug.export=true")
             jvmArgument("-Dmixin.checks.interfaces=true")

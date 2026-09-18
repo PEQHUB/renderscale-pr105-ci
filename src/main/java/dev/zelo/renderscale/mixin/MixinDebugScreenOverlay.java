@@ -19,7 +19,7 @@ import net.minecraft.client.gui.components.debug.DebugScreenProfile;
 //? >= 1.21.11 {
 import net.minecraft.resources.Identifier;
 //?} else
-//import net.minecraft.resources.ResourceLocation;
+//import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Final;
@@ -48,7 +48,7 @@ public abstract class MixinDebugScreenOverlay {
     }
     //?} else {
     /*@Invoker("register")
-    private static ResourceLocation renderScale$register(ResourceLocation id, DebugScreenEntry entry) {
+    private static Identifier renderScale$register(Identifier id, DebugScreenEntry entry) {
         throw new AssertionError();
     }
     *///?}
@@ -76,7 +76,7 @@ public abstract class MixinDebugScreenOverlay {
         //? >= 1.21.11 {
         Identifier id = Identifier.fromNamespaceAndPath("renderscale", "render_scale");
         //?} else
-        //ResourceLocation id = ResourceLocation.fromNamespaceAndPath("renderscale", "render_scale");
+        //Identifier id = Identifier.fromNamespaceAndPath("renderscale", "render_scale");
         renderScale$register(id, entry);
 
         renderScale$addToProfiles(id);

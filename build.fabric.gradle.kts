@@ -155,11 +155,13 @@ dependencies {
     if (hasProperty("deps.sodium")) {
         // compileOnly: the API stub jar declares mixin configs it doesn't contain,
         // so fabric-loader crashes if it ends up on the runtime classpath as a mod
-        val sodiumVersion = prop("deps.sodium") + if (sc.current.parsed < "26") "+mc${prop("deps.minecraft")}" else ""
-        modCompileOnly("net.caffeinemc:sodium-fabric-api:$sodiumVersion")
+//        val sodiumVersion = prop("deps.sodium") + if (sc.current.parsed < "26") "+mc${prop("deps.minecraft")}" else ""
+
+        // make up your mind guys...
+        modCompileOnly("net.caffeinemc:sodium-fabric-api:${prop("deps.sodium")}+mc${prop("deps.sodium_minecraft")}")
+        modLocalRuntime("maven.modrinth:sodium:mc${prop("deps.sodium_minecraft")}-${prop("deps.sodium")}-fabric")
+//        modLocalRuntime("maven.modrinth:iris:${property("deps.iris")}-fabric")
     }
 
-    //    modLocalRuntime("maven.modrinth:sodium:${property("deps.sodium")}-fabric")
-    //    modLocalRuntime("maven.modrinth:iris:${property("deps.iris")}-fabric")
     modCompileOnly("maven.modrinth:iris:${property("deps.iris")}-fabric")
 }
