@@ -1,8 +1,12 @@
-# 1.4.0-alpha.5
+# 1.4.0-alpha.6
 
-# 1.21.1
-## Fixes
+## New versions
 
-- Fix 1.21.1 visual bugs with KubeJS [#81](https://github.com/Zolo101/RenderScale/issues/81)
+- 26.3 (Fabric, NeoForge)
 
-[//]: # (- Fix rendering bugs with Punchy! [#85]&#40;https://github.com/Zolo101/RenderScale/issues/85&#41; )
+## Changes
+
+Experimental support for Dynamic Scaling! Set your target FPS, and it'll change the scale factor while you play.
+
+- F3 now shows your current scale factor. (You can remove it with F3 + F6)
+- Improve FSR 1.0 performance on scales over 100%.
