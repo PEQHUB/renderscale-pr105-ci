@@ -40,9 +40,12 @@ platform {
         }
         optional("modmenu") {}
 
+        // Mods that do the same thing as RenderScale,
+        // sometimes people add multiple of these which obviously causes massive bugs due to conflicts
         incompatible("resolutioncontrol-plus-plus") {}
         incompatible("resolutioncontrol-plus") {}
         incompatible("resolutioncontrol") {}
+        incompatible("superresolution") {}
     }
 }
 

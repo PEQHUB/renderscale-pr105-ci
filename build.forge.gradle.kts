@@ -26,6 +26,24 @@ platform {
         required("cloth_config") {
             forgeLikeVersionRange = prop("deps.cloth_config")
         }
+
+        // Mods that do the same thing as RenderScale,
+        // sometimes people add multiple of these which obviously causes massive bugs due to conflicts
+        incompatible("resolutioncontrol-plus-plus") {
+            forgeLikeVersionRange.set("[0,)")
+        }
+
+        incompatible("resolutioncontrol-plus") {
+            forgeLikeVersionRange.set("[0,)")
+        }
+
+        incompatible("resolutioncontrol") {
+            forgeLikeVersionRange.set("[0,)")
+        }
+
+        incompatible("superresolution") {
+            forgeLikeVersionRange.set("[0,)")
+        }
     }
 }
 
