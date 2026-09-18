@@ -451,9 +451,11 @@ public class RenderScale {
         //? < 1.21.11 {
         /*try (RenderPass renderPass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Blit render target", output.getColorTextureView(), OptionalInt.empty())) {
         *///? } else
-        if (getConfig().fsr) {
+        if (getConfig().fsr && input.width <= output.width && input.height <= output.height) {
             if (fsrIntermediateTarget == null) {
+                // TODO: maybe use TextureTarget, we're wasting like 32MB of VRAM here
                 fsrIntermediateTarget = new MainTarget(output.width, output.height);
+//                    fsrIntermediateTarget = new TextureTarget("FSR: Intermediate", output.width, output.height);
             } else if (fsrIntermediateTarget.width != output.width || fsrIntermediateTarget.height != output.height) {
                 fsrIntermediateTarget.resize(output.width, output.height);
             }
